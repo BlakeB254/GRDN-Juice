@@ -49,6 +49,7 @@ export default function BlendBuilder() {
 
   const fetchIngredients = async () => {
     try {
+      // Try API first
       const response = await fetch('/api/ingredient-variants');
 
       if (!response.ok) {
@@ -57,17 +58,29 @@ export default function BlendBuilder() {
 
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Received non-JSON response:', text.substring(0, 200));
-        throw new Error('Server returned HTML instead of JSON');
+        throw new Error('Server returned non-JSON response');
       }
 
       const data = await response.json();
-      console.log('Fetched ingredients:', data.length, 'items');
+      console.log('Fetched ingredients from API:', data.length, 'items');
       setIngredients(data);
     } catch (error) {
-      console.error('Error fetching ingredients:', error);
-      setIngredients([]); // Set empty array to prevent infinite loading
+      console.log('API not available, loading from static data...');
+
+      // Fallback to static JSON file for static deployment
+      try {
+        const staticResponse = await fetch('/ingredient-variants.json');
+        if (staticResponse.ok) {
+          const data = await staticResponse.json();
+          console.log('Fetched ingredients from static file:', data.length, 'items');
+          setIngredients(data);
+        } else {
+          throw new Error('Static data file not found');
+        }
+      } catch (staticError) {
+        console.error('Error loading static ingredients:', staticError);
+        setIngredients([]);
+      }
     } finally {
       setLoading(false);
     }
